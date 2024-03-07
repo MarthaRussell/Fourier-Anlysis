@@ -1,0 +1,114 @@
+#include <stdio.h>
+#include <math.h>
+#include <stdlib.h>
+
+typedef struct Complex {
+    double real;
+    double imag;
+} Complex;
+
+void h1(double t, double *h1real, double *h1imag) {
+    *h1real = cos(t) + cos(5*t);
+    *h1imag = sin(t) + sin(5*t);
+}
+
+void h2(double t, double *h2real, double *h2imag) {
+    *h2real = exp(((t - M_PI) * (t - M_PI))/2);
+    *h2imag = 0;
+}
+
+void write_file(char *filename1, char *filename2, double *h1real, double *h1imag, double *h2real, double *h2imag)
+{
+    int i;
+    double t;
+    FILE *p_file1, *p_file2; //a pointer to a file
+    p_file1 = fopen(filename1, "w");//open file for writing
+    p_file2 = fopen(filename2, "w");
+    
+    for (i = 0; i < 100; i++)
+    {
+    t = ((2* M_PI)/100) * i;
+    h1(t, h1real, h1imag);
+    fprintf(p_file1, "%f, %f, %f\n", t, *h1real, *h1imag);
+    }
+    fclose(p_file1);//closing the file
+    
+    for (i=0; i< 100; i++)
+    {
+    t = ((2 * M_PI)/100) * i;
+    h2(t,h2real,h2imag);
+    fprintf(p_file2, "%f, %f, %f\n", t, *h2real, *h2imag);
+    }
+    fclose(p_file2);
+}
+
+void read_data(const char *filename, Complex *data, int N) {
+    FILE *file = fopen(filename, "r");
+    if (file == NULL) {
+        perror("Error opening file");
+        exit(EXIT_FAILURE);
+    }
+    printf("Reading data from file: %s\n", filename); // Debugging print statement
+    double time; // Temporary variable to store the time value (discarded)
+    for (int i = 0; i < N; i++) {
+        if (fscanf(file, "%lf , %lf , %lf", &time, &(data[i].real), &(data[i].imag)) != 3) {
+            fprintf(stderr, "Error reading file: %s\n", filename);
+            exit(EXIT_FAILURE);
+        }
+    }
+    printf("Data reading completed successfully.\n"); // Debugging print statement
+    fclose(file);
+}
+
+// Function to compute Discrete Fourier Transform (DFT)
+void compute_dft(const Complex *data, Complex *result, int N) {
+    for (int k = 0; k < N; k++) {
+        result[k].real = 0;
+        result[k].imag = 0;
+        for (int n = 0; n < N; n++) {
+            double angle = (2 * M_PI * k * n) / N;
+            result[k].real += data[n].real * cos(angle) - data[n].imag * sin(angle);
+            result[k].imag += data[n].real * sin(angle) + data[n].imag * cos(angle);
+        }
+    }
+}
+
+void print_dft_result(const Complex *result, int N) {
+    printf("Printing DFT result:\n");
+    for (int i = 0; i < N; i++) {
+        printf("DFT[%d]: %.6f + %.6fi\n", i, result[i].real, result[i].imag);
+    }
+}
+
+
+
+int main() {
+    double t = 1.0;
+    double h1real, h1imag, h2real, h2imag;
+    int N = 100;
+
+    h1(t, &h1real, &h1imag);
+    h2(t, &h2real, &h2imag);
+    
+    write_file("h1_data.txt", "h2_data.txt", &h1real, &h1imag, &h2real, &h2imag);
+    
+    Complex h1_data[N]; // Declare array to store data read from file h1_data.txt
+    Complex h2_data[N]; // Declare array to store data read from file h2_data.txt
+    read_data("h1_data.txt", h1_data, N);
+    read_data("h2_data.txt", h2_data, N);
+    
+    Complex H1[N], H2[N];
+    
+    compute_dft(h1_data, H1, N);
+    
+    compute_dft(h2_data, H2, N); 
+    
+    printf("H1 results: ");
+    print_dft_result(H1, N);
+    
+    printf("H2 results: ");
+    print_dft_result(H2, N);
+
+
+    return 0;
+}
